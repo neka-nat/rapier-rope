@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "contact_steps": 480,
+  "contact_radius_m": 0.005,
+  "max_contact_penetration_m": 0.005,
+  "max_final_contact_gap_m": 0.01,
+  "min_contact_steps": 1,
+  "min_control_shape_difference_m": 0.02
+}

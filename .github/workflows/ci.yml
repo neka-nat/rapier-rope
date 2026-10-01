@@ -1,0 +1,71 @@
+name: CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  CARGO_TERM_COLOR: never
+jobs:
+  numeric:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: [1.90.0, 1.93.0]
+        precision: [f32, f64]
+    env:
+      RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --component rustfmt --component clippy
+      - name: Release tests, lint and docs (one precision)
+        shell: bash
+        run: |
+          flags=()
+          if [[ '${{ matrix.precision }}' == f64 ]]; then flags=(--no-default-features --features f64); fi
+          cargo test --locked --release "${flags[@]}"
+          cargo clippy --locked --all-targets "${flags[@]}" -- -D warnings
+          RUSTDOCFLAGS='-D warnings' cargo doc --locked --no-deps "${flags[@]}"
+      - if: matrix.toolchain == '1.93.0' && matrix.precision == 'f32'
+        run: |
+          cargo fmt --all -- --check
+          rustfmt --edition 2024 --check tests/consumer-common/shared.rs
+          bash scripts/check_features.sh
+          python3 scripts/dependency_inventory.py
+          python3 scripts/check_public_surface.py
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: |
+          rustup toolchain install 1.90.0 --profile minimal
+          rustup toolchain install 1.93.0 --profile minimal
+          cargo fetch --locked
+      - run: bash scripts/check_package.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: checked-crate-and-package-evidence
+          path: |
+            target/package/*.crate
+            target/package-check/
+  viewer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: |
+          rustup toolchain install 1.93.0 --profile minimal
+          python3 -m pip install playwright==1.60.0
+          python3 -m playwright install --with-deps chromium
+      - name: Playback examples and browser checks
+        shell: bash
+        run: |
+          export RAPIER_ROPE_CHROME="$(python3 -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print(p.chromium.executable_path); p.stop()')"
+          bash scripts/check_viewer.sh
