@@ -45,7 +45,7 @@ jobs:
           persist-credentials: false
       - run: |
           rustup toolchain install 1.90.0 --profile minimal
-          rustup toolchain install 1.93.0 --profile minimal
+          rustup toolchain install 1.93.0 --profile minimal --component rustfmt --component clippy
           cargo fetch --locked
       - run: bash scripts/check_package.sh
       - uses: actions/upload-artifact@v4
@@ -61,7 +61,7 @@ jobs:
         with:
           persist-credentials: false
       - run: |
-          rustup toolchain install 1.93.0 --profile minimal
+          rustup toolchain install 1.93.0 --profile minimal --component rustfmt --component clippy
           python3 -m pip install playwright==1.60.0
           python3 -m playwright install --with-deps chromium
       - name: Playback examples and browser checks
